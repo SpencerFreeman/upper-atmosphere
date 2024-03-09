@@ -1,4 +1,5 @@
 # ignore ALL .pptx files
+*.asv
 *.pptx
 
 # ignore ALL files in ANY directory named data
