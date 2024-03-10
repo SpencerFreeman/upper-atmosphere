@@ -25,21 +25,11 @@ yq = linspace(lat_range(1), lat_range(2), 70);
 x  = data.LON;
 y  = data.LAT;
 v  = data.UpCont;
-
 [Xq, Yq, Vq] = griddata(x, y, v, xq, yq', "linear");
-
-i = 200;
-data(i, :)
-V = data(i, :).UpCont
-Vi = griddata(x, y, v, data(i, :).LON, data(i, :).LAT, "linear")
-
 
 figure('WindowStyle', 'Docked')
 contourf(wrapTo180(Xq), Yq, Vq)
-
 hold on
-
-plot(data(i, :).LON-360,data(i, :).LAT,'*k')
 
 clr = [1 0 0];
 
@@ -54,11 +44,47 @@ text(roanoke_lla(2), roanoke_lla(1) + .1, 'Roanoke', 'Color',clr)
 clim([min(v) max(v)])
 c = colorbar;
 c.Label.String = '(nT)';
+
+lon_plot = linspace(lon_range(1), lon_range(2), 5)';
+for i = 1:length(lon_plot)
+    temp = degrees2dms(lon_plot(i));
+    lblsx{i} = [ num2str(temp(1), '%.0f'), '\circ', ...
+                num2str(temp(2), '%.0f'), '''', ...
+                num2str(temp(3), '%.0f'), ''''''];
+end
+xticks(lon_plot)
+xticklabels(lblsx)
+
+lat_plot = linspace(lat_range(1), lat_range(2), 3)';
+for i = 1:length(lat_plot)
+    temp = degrees2dms(lat_plot(i));
+    lblsy{i} = [ num2str(temp(1), '%.0f'), '\circ', ...
+                num2str(temp(2), '%.0f'), '''', ...
+                num2str(temp(3), '%.0f'), ''''''];
+end
+yticks(lat_plot)
+yticklabels(lblsy)
+
 axis equal
 title('NOAA EMAG2 V3 Magnetic Anomaly')
-xlabel('Longitude (deg)')
-ylabel('Latitude (deg)')
-zlabel('Magnetic Anomaly (nT)')
+xlabel('Longitude')
+ylabel('Latitude')
+zlabel('Magnetic Anomaly (nT) ')
+
+
+
+
+
+
+
+
+
+% i = 200;
+% data(i, :)
+% V = data(i, :).UpCont
+% Vi = griddata(x, y, v, data(i, :).LON, data(i, :).LAT, "linear")
+
+% plot(data(i, :).LON-360,data(i, :).LAT,'*k')
 
 
 
