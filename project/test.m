@@ -28,8 +28,11 @@ v  = data.UpCont;
 [Xq, Yq, Vq] = griddata(x, y, v, xq, yq', "linear");
 
 figure('WindowStyle', 'Docked')
-contourf(wrapTo180(Xq), Yq, Vq)
+contourf(wrapTo180(Xq), Yq, Vq)%, "ShowText",true,"LabelFormat","%0.0f (nT)")
 hold on
+
+% plot(wrapTo180(x), y, '.k')
+% plot(wrapTo180(Xq(1, :)), Yq(:, 1), '.k')
 
 clr = [1 0 0];
 
