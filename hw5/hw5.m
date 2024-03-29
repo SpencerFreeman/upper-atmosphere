@@ -16,16 +16,14 @@ e_charge = -1.6e-19; % C
 e_mass = 9.11e-31; % kg
 
 
-
-
-
 B = [2,  30,  0]*10^-3; % T
 
 % An electron in this region has a velocity of
 v = [400, 200, 300]; % m/s
 
+vp = v - dot(v, B/norm(B)) * B/norm(B); % m/s
 
-rg = e_mass*dot(v, B/norm(B)) / abs(e_charge)/norm(B); % m (𝑚𝑣_⊥)/|𝑞|𝐵
+rg = e_mass*norm(vp) / abs(e_charge)/norm(B); % m (𝑚𝑣_⊥)/|𝑞|𝐵
 
 rg_nm = rg / 10^-9; % nm
 
@@ -61,32 +59,47 @@ G = 6.67430e-11;
 
 earth_mass = 5.97e24; % kg
 
-earth_r = 6378; % km
+earth_r = 6378e3; % m
 
-alt = 400; % km
+alt = 400e3; % m
 
-r = ((alt + earth_r)*1000)^3; % m
+r = alt + earth_r; % m
 
 theta = 80; % deg
 
 B0 = 3.1e-5; % T
 
-B2 = [-2 * B0 * earth_r*1000 / r * cosd(theta); ...
-    -B0 * earth_r*1000 / r * sind(theta)]; % T
+B2 = [-2 * B0 * earth_r / r^3 * cosd(theta); ...
+          -B0 * earth_r / r^3 * sind(theta); ...
+                                         0]; % T
 
-Fg = -G*earth_mass*e_mass/r^2 * [1; 0; 0]; % N
+Fg = G*earth_mass*e_mass/r^2 * [-1; 0; 0]; % N
 
-% Fp = Fp * 
+Bdir = B2/norm(B2);
 
-% vcg = cross(Fp, B2) / norm(B)^2;
+Fp = Fg - dot(Fg, Bdir) * Bdir; 
 
+vcg = 1/e_charge * cross(Fp, B2) / (norm(B2)^2);
 
+fprintf('4: %e\n', norm(vcg))
 
+%%
 
+B2d = B2/norm(B2);
+Fpd = Fp/norm(Fp);
+Fgd = Fg/norm(Fg);
 
-
-
-
+% figure
+% plot3([0 B2d(1)], [0 B2d(2)], [0 B2d(3)])
+% hold on
+% plot3([0 Fpd(1)], [0 Fpd(2)], [0 Fpd(3)])
+% plot3([0 Fgd(1)], [0 Fgd(2)], [0 Fgd(3)])
+% 
+% grid on
+% axis equal
+% xlabel('r')
+% ylabel('theta')
+% zlabel('psi')
 
 
 
