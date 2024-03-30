@@ -1,26 +1,4 @@
-clear;clc;close all
-
-
-raw_data = import_emag2_file("C:\Users\spenc\Desktop\school shit 2\Spring_2024\upper_atmosphere\project\data\EMAG2_V3_20170530\EMAG2_V3_20170530.csv", [1, Inf]);
-
-
-%%
-
-lat_range = [ 36.758719  37.556273];
-lon_range = [-80.874399 -79.464463];
-
-inds = raw_data.LON > (360 + lon_range(1)) & raw_data.LON < (360 + lon_range(2)) & ...
-    raw_data.LAT > lat_range(1) & raw_data.LAT < lat_range(2);
-
-data = raw_data(inds, :);
-
-save('EMAG2_V3_Blacksburg-Roanoke', 'data')
-
-
-%% plotting
-clc; close all
-
-load('EMAG2_V3_Blacksburg-Roanoke', 'data')
+function plot_mag_countour(data, lat_range, lon_range)
 
 xq = linspace(360 + lon_range(1), 360 + lon_range(2), 75);
 yq = linspace(lat_range(1), lat_range(2), 70);
@@ -76,31 +54,4 @@ xlabel('Longitude')
 ylabel('Latitude')
 zlabel('Magnetic Anomaly (nT) ')
 
-
-
-
-
-
-
-
-
-% i = 200;
-% data(i, :)
-% V = data(i, :).UpCont
-% Vi = griddata(x, y, v, data(i, :).LON, data(i, :).LAT, "linear")
-
-% plot(data(i, :).LON-360,data(i, :).LAT,'*k')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+end
