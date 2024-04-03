@@ -1,4 +1,4 @@
-function x_truth = generate_trajectory(lla0, llaf, v, n)
+function [x_truth, lats, lons, alts] = generate_trajectory(lla0, llaf, v, n)
 
 lats = linspace(lla0(1), llaf(1), n);
 lons = linspace(lla0(2), llaf(2), n);

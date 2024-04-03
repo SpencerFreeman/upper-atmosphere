@@ -6,17 +6,21 @@ load('EMAG2_V3_Blacksburg-Roanoke', 'data')
 lat_range = [ 36.758719  37.556273];
 lon_range = [-80.874399 -79.464463];
 
-plot_mag_countour(data, lat_range, lon_range)
+[Xq, Yq, Vq] = plot_mag_countour(data, lat_range, lon_range);
 
 %% generate truth + measurements
 lla0 = [36.90165855141354, -79.70578451436336, 4e3]; % deg, deg
 llaf = [37.22891412982679, -80.43067879145124, 4e3]; % deg, deg
 
-plot(lla0(2), lla0(1), 'xk')
+plot(llaf(2), llaf(1), 'xk')
 
 n = 1000;
-xs_truth = generate_trajectory(lla0, llaf, 10, n); % m
-zs_turth = 
+[xs_truth, lats, lons, alts] = generate_trajectory(lla0, llaf, 10, n); % m\
+
+plot(linspace(lla0(2), llaf(2), n), linspace(lla0(1), llaf(1), n), '--k')
+
+zs_truth = griddata(Xq(:), Yq(:), Vq(:), 360 + lons, lats);
+
 
 %% filter
 

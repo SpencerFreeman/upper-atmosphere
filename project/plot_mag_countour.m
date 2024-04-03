@@ -1,4 +1,4 @@
-function plot_mag_countour(data, lat_range, lon_range)
+function [Xq, Yq, Vq] = plot_mag_countour(data, lat_range, lon_range)
 
 xq = linspace(360 + lon_range(1), 360 + lon_range(2), 75);
 yq = linspace(lat_range(1), lat_range(2), 70);
