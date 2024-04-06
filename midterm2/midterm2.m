@@ -21,7 +21,7 @@ He_u = 3.2 *  eV2J; % J
 dpsi = 70 * pi/180; % The particles motion directed away from the local geomagnetic field vector, rad
 
 B_mag = 4700e-9; % local geomagnetic field, T
-r = 7300; % radius of curvature, km
+Rc_mag = 7300e3; % radius of curvature, m
 
 % a) The velocity of the particle parallel to the magnetic field, in m/s 
 % (hint, use its kinetic energy to find its total speed first)
@@ -54,9 +54,12 @@ fprintf('2d: %f, s\n', T)
 
 % 𝑉_∇𝐵+𝑉_(∇×𝐵)=𝑚/𝑞  (𝑅 ⃗_𝑐×𝐵 ⃗_ )/(𝑅_𝑐^2 𝐵^2 ) (𝑣_∥^2+1/2 𝑣_⊥^2 )
 
-v_grad_curv = He_mass / He_c * (v_B_para^2 + .5*v_B_perp^2); % m/s
+B = B_mag * [0; 1; 0]; % B field vector (at geomagnetic equator), T
+Rc = Rc_mag * [1; 0; 0]; % m
 
-fprintf('2e: %f, m/s <--- CHECK THIS\n', v_grad_curv)
+v_grad_curv = norm(He_mass / He_c * cross(Rc, B) / (Rc_mag^2 * B_mag^2) * (v_B_para^2 + .5*v_B_perp^2)); % m/s
+
+fprintf('2e: %f, m/s\n', v_grad_curv)
 
 % f) The magnetic field strength, in nT, at which this particle will mirror.
 
@@ -72,7 +75,16 @@ fprintf('2f: %f, nT\n', B_m * 10^9)
 fprintf('\n')
 clear
 
+q = 3.2*10^8; % ions / m^3 / s
+alpha = 0.0079;
+
 % a) Estimate the ion density in this region at the time of the intense auroral electrons.
+
+% 𝑛_𝑒 (𝑧,𝑡)≈√(𝑞(𝑧,𝑡)/𝛼)
+
+n_e0 = sqrt(q / alpha); % ions / 
+
+fprintf('3a: %f, ions/something...\n', n_e0)
 
 % b) A few moments later, the auroral electrons move away from this region. 
 % If it is currently nighttime (i.e. sun has set), determine the rate of 
@@ -80,11 +92,35 @@ clear
 % (hint, if you solve this numerically, use a small time-step to ensure 
 % dt * dn/dt is << n).
 
+% (𝜕𝑛_𝑒)/𝜕𝑡=𝑞(𝑧,𝑡)−𝛼𝑛_𝑒^2
+
+n_e = n_e0;
+
+tend = 3; % s
+dt = 1e-6; % s
+ts = linspace(0, tend, round(tend/dt)); % s
 
 
+for i = 1:length(ts)
 
+    n_e_dot = -alpha * n_e^2;
 
+    n_e = n_e + n_e_dot * dt;
 
+    n_es(i) = n_e;
+
+end
+
+[t,nes] = ode45(@(t, ne) -alpha * ne^2, [0 tend], n_e0);
+n_e_ode = nes(end);
+
+n_e_tend = 1 / (alpha * tend + 1 / n_e0);
+
+% figure
+% plot(ts, n_es)
+% grid on
+
+fprintf('3b: %f, %f, %f, ions/something... / s\n', n_e, n_e_ode, n_e_tend)
 
 
 
