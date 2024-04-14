@@ -1,4 +1,4 @@
-function [Xq, Yq, Vq] = plot_mag_countour(data, lat_range, lon_range)
+function [map, h] = plot_mag_countour(data, lat_range, lon_range)
 
 xq = linspace(360 + lon_range(1), 360 + lon_range(2), 75);
 yq = linspace(lat_range(1), lat_range(2), 70);
@@ -6,8 +6,11 @@ x  = data.LON;
 y  = data.LAT;
 v  = data.UpCont;
 [Xq, Yq, Vq] = griddata(x, y, v, xq, yq', "linear");
+map(:, :, 1) = Xq;
+map(:, :, 2) = Yq;
+map(:, :, 3) = Vq;
 
-figure('WindowStyle', 'Docked')
+h = figure('WindowStyle', 'Docked');
 contourf(wrapTo180(Xq), Yq, Vq)%, "ShowText",true,"LabelFormat","%0.0f (nT)")
 hold on
 
