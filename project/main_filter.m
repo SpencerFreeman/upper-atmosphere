@@ -5,6 +5,7 @@ addpath('functions')
 addpath('data')
 load('EMAG2_V3_Blacksburg-Roanoke', 'data')
 
+% accessed from web: https://imag-data.bgs.ac.uk/GIN_V1/GINForms2
 % text = fileread('data/FRD20240418.json');
 text = fileread('data/FRD20220203.json'); % February Solar Storm (killed Starlink satellites)
 temporal_data = jsondecode(text);
