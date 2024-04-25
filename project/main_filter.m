@@ -34,12 +34,11 @@ plot(t_temporal_data, temporal_data.S - F)
 grid on
 ylabel('Magnetic Field Strength (nT)')
 xlabel('Time (s)')
-text()
 
-lat_range = [ 36.758719  37.556273];
-lon_range = [-80.874399 -79.464463];
+lat_range = [ 36.758719  37.556273]; nlat = 70;
+lon_range = [-80.874399 -79.464463]; nlon = 75;
 
-[map, h] = plot_mag_countour(data, lat_range, lon_range);
+map = build_map(data, lat_range, nlat, lon_range, nlon);
 
 %% generate truth + measurements
 lla0 = [36.90165855141354, -79.70578451436336, 4e3]; % deg, deg
@@ -56,7 +55,8 @@ zs_truth = read_map(xs_truth, map); % using truth measurements, perfect sensor
 use_mag = true;
 
 R = 2e1;%1e-5; % measurement noise, very small for perfect sensor, nT
-R2 = 1e1;
+R2 = 1e1; % alt, m
+R3 = 1 * eye(3); % heading
 
 qtilda = 1e0; % m^2/s^5
 Q = process_noise(qtilda, Ts);
@@ -69,7 +69,7 @@ Phi = [...
 
 % x0 = [xs_truth(1:3, 1); zeros(6, 1)]; % m, m/s, m/s^2
 x0 = xs_truth(:, 1) + ...
-    [randn(3, 1) * 10; randn(3, 1) * 2; randn(3, 1) * 0]; % initialize with truth
+    [randn(3, 1) * 10; randn(3, 1) * 2; randn(3, 1) * .1]; % initialize with truth
 
 % x0 = [913107.851200612; -5027503.00541662; 3811061.22541831; -39.8270679230392; 8.35545013041825; 22.4064255614077; -5.61802231030889e-05; 0.000309317309728480; -0.000234476519221953];
 
@@ -88,6 +88,8 @@ end
 % create map reading function handle
 f = @(x) read_map(x, map);
 fa = @(x) norm(x(1:3));
+fh = @(x) x(4:6) / norm(x(4:6)); % current heading reading, (direction vector)
+
 
 % loop through measurements -----------------------------
 tic
@@ -110,7 +112,7 @@ for i = 1:n % %%%% loop measurements %%%%%
 
     % Update filter state and covariance matrix using the measurement
     if use_mag
-        z = zs_truth(i) + randn * .1; % current magnetometer reading, nT
+        z = zs_truth(i) + randn * 1; % current magnetometer reading, nT
 
         zbar = read_map(xbar, map); % consult the map! nT
 
@@ -135,14 +137,17 @@ for i = 1:n % %%%% loop measurements %%%%%
     % process altimeter measurement
     [xhat, phat] = update_altimeter(xhat, phat, xs_truth, i, fa, R2);
 
+    % process heading measurement
+    [xhat, phat] = update_heading(xhat, phat, xs_truth, i, fh, R3);
+
 end %%%% loop measurements %%%%%
 toc
 
 lla_estimate = ecef2lla(xs(1:3, :)')';
 
-r_error = vecnorm(xs_truth(1:3, 1:i) - xs(1:3, :), 2, 1);
-v_error = vecnorm(xs_truth(4:6, 1:i) - xs(4:6, :), 2, 1);
-a_error = vecnorm(xs_truth(7:9, 1:i) - xs(7:9, :), 2, 1);
+r_error = vecnorm(xs_truth(1:3, 1:i) - xs(1:3, 1:i), 2, 1);
+v_error = vecnorm(xs_truth(4:6, 1:i) - xs(4:6, 1:i), 2, 1);
+a_error = vecnorm(xs_truth(7:9, 1:i) - xs(7:9, 1:i), 2, 1);
 
 %% plotting
 
@@ -153,10 +158,12 @@ fprintf('\tAcceleration: %f (m/s^2)\n', mean(a_error))
 
 h2 = figure;
 h2.WindowStyle = 'Docked';
-plot(ts_truth(1:i), NISs)
+plot(ts_truth(1:i), NISs(1:i))
 grid on
 
-figure(h)
+h1 = plot_mag_countour(map);
+
+figure(h1)
 plot(llaf(2), llaf(1), 'xk')
 plot(linspace(lla0(2), llaf(2), n), linspace(lla0(1), llaf(1), n), '--k')
 plot(lla_estimate(2, :), lla_estimate(1, :), 'm')

@@ -1,14 +1,10 @@
-function [map, h] = plot_mag_countour(data, lat_range, lon_range)
+function h = plot_mag_countour(map)
 
-xq = linspace(360 + lon_range(1), 360 + lon_range(2), 75);
-yq = linspace(lat_range(1), lat_range(2), 70);
-x  = data.LON;
-y  = data.LAT;
-v  = data.UpCont;
-[Xq, Yq, Vq] = griddata(x, y, v, xq, yq', "linear");
-map(:, :, 1) = Xq;
-map(:, :, 2) = Yq;
-map(:, :, 3) = Vq;
+Xq = map(:, :, 1); % lon
+Yq = map(:, :, 2); % lat
+Vq = map(:, :, 3); % mag
+
+
 
 h = figure('WindowStyle', 'Docked');
 contourf(wrapTo180(Xq), Yq, Vq)%, "ShowText",true,"LabelFormat","%0.0f (nT)")
@@ -27,11 +23,11 @@ roanoke_lla = [37.2810435498791, -79.95796154021077];
 plot(roanoke_lla(2), roanoke_lla(1), '*', 'Color',clr)
 text(roanoke_lla(2), roanoke_lla(1) + .1, 'Roanoke', 'Color',clr)
 
-clim([min(v) max(v)])
+clim([min(Vq(:)) max(Vq(:))])
 c = colorbar;
 c.Label.String = '(nT)';
 
-lon_plot = linspace(lon_range(1), lon_range(2), 5)';
+lon_plot = linspace(Xq(1, 1) - 360, Xq(1, end) - 360, 5)';
 for i = 1:length(lon_plot)
     temp = degrees2dms(lon_plot(i));
     lblsx{i} = [ num2str(temp(1), '%.0f'), '\circ', ...
@@ -41,7 +37,7 @@ end
 xticks(lon_plot)
 xticklabels(lblsx)
 
-lat_plot = linspace(lat_range(1), lat_range(2), 3)';
+lat_plot = linspace(Yq(1, 1), Yq(end, 1), 3)';
 for i = 1:length(lat_plot)
     temp = degrees2dms(lat_plot(i));
     lblsy{i} = [ num2str(temp(1), '%.0f'), '\circ', ...

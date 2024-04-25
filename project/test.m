@@ -79,8 +79,18 @@ zlabel('Magnetic Anomaly (nT) ')
 
 
 
+%%
+clear;clc;close all
+
+syms x y z vx vy vz
+
+r = [x;y;z];
+v = [vx;vy;vz];
 
 
+% jacobian(norm(r), r)
+
+Hv = jacobian(v / norm(v), v)
 
 
 
