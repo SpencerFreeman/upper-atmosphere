@@ -1,7 +1,8 @@
 function [xhat, phat] = update_heading(xbar, M, xs_truth, i, f, R)
 
 % Update filter state and covariance matrix using the measurement (heading)
-z = xs_truth(4:6, i) / norm(xs_truth(4:6, i)); % current heading reading, (direction vector)
+z = xs_truth(4:6, i) / norm(xs_truth(4:6, i)) + ...
+    .1 * randn(3, 1); % current heading reading, (direction vector)
 
 zbar = xbar(4:6) / norm(xbar(4:6)); % predicted heading
 

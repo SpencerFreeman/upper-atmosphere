@@ -28,6 +28,9 @@ t_temporal_data.TimeZone = "America/New_York";
         t_temporal_data(1).Month, ...
         t_temporal_data(1).Day));
 
+% '03-Feb-2022 04:00:00'
+
+
 h0 = figure;
 h0.WindowStyle = 'Docked';
 plot(t_temporal_data, temporal_data.S - F)
@@ -49,7 +52,15 @@ llaf = [37.22891412982679, -80.43067879145124, 4e3]; % deg, deg
 Ts = 1;%1/10; % s
 [xs_truth, ts_truth, n] = generate_trajectory(lla0, llaf, 50, Ts); %
 
+% t_temporal_data(32401:(32401 + n - 1));
+
+temporal_data_mag = temporal_data.S(32401:(32401 + n - 1)); % nT
+temporal_data_mag = temporal_data_mag - temporal_data_mag(1);
+
 zs_truth = read_map(xs_truth, map); % using truth measurements, perfect sensor
+
+
+
 
 %% filter
 use_mag = true;
@@ -112,7 +123,7 @@ for i = 1:n % %%%% loop measurements %%%%%
 
     % Update filter state and covariance matrix using the measurement
     if use_mag
-        z = zs_truth(i) + randn * 1; % current magnetometer reading, nT
+        z = zs_truth(i) + randn * 1 + temporal_data_mag(i)*1; % current magnetometer reading, nT
 
         zbar = read_map(xbar, map); % consult the map! nT
 
