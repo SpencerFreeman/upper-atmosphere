@@ -1,10 +1,17 @@
 clear;clc;close all
 
-%% load data + plot reference map
+%% load data + build map
 addpath('functions')
 addpath('data')
 load('EMAG2_V3_Blacksburg-Roanoke', 'data')
 
+% generate map via interpolation ------------------------------------------
+lat_range = [ 36.758719  37.556273]; nlat = 70;
+lon_range = [-80.874399 -79.464463]; nlon = 75;
+
+map = build_map(data, lat_range, nlat, lon_range, nlon);
+
+% load temporal mag data --------------------------------------------------
 % accessed from web: https://imag-data.bgs.ac.uk/GIN_V1/GINForms2
 % text = fileread('data/FRD20240418.json');
 text = fileread('data/FRD20220203.json'); % February Solar Storm (killed Starlink satellites)
@@ -28,21 +35,6 @@ t_temporal_data.TimeZone = "America/New_York";
         t_temporal_data(1).Month, ...
         t_temporal_data(1).Day));
 
-% '03-Feb-2022 04:00:00'
-
-
-h0 = figure;
-h0.WindowStyle = 'Docked';
-plot(t_temporal_data, temporal_data.S - F)
-grid on
-ylabel('Magnetic Field Strength (nT)')
-xlabel('Time (s)')
-
-lat_range = [ 36.758719  37.556273]; nlat = 70;
-lon_range = [-80.874399 -79.464463]; nlon = 75;
-
-map = build_map(data, lat_range, nlat, lon_range, nlon);
-
 %% generate truth + measurements
 lla0 = [36.90165855141354, -79.70578451436336, 4e3]; % deg, deg
 % lla0 = [37.1979516376812, -79.5787821351352, 4e3]; % deg, deg
@@ -65,7 +57,7 @@ zs_truth = read_map(xs_truth, map); % using truth measurements, perfect sensor
 %% filter
 use_mag = true;
 
-R = 2e1;%1e-5; % measurement noise, very small for perfect sensor, nT
+R = 1e2;%1e-5; % measurement noise, very small for perfect sensor, nT
 R2 = 1e1; % alt, m
 R3 = 1 * eye(3); % heading
 
@@ -104,18 +96,24 @@ fh = @(x) x(4:6) / norm(x(4:6)); % current heading reading, (direction vector)
 
 % loop through measurements -----------------------------
 tic
-xhat = x0;
-phat = p0;
-NIS = 0;
-zbar = 0;
-xs = nan(length(x0), n);
-NISs = nan(1, n);
+xhat    = x0;
+phat    = p0;
+NIS     = 0;
+zbar    = 0;
+grad    = 0;
+xs      = nan(length(x0), n);
+phats   = nan(length(p0(:)), n);
+NISs    = nan(1, n);
+grads   = nan(1, n);
+
 for i = 1:n % %%%% loop measurements %%%%%
 
-    if isnan(zbar); i = i - 1; break; end % break if off the map
+    iend = i; if isnan(zbar); iend = i - 1; break; end % break if off the map
 
-    xs(:, i) = xhat;
-    NISs(i) = NIS;
+    xs(:, i)        = xhat;
+    phats(:, i)     = phat(:);
+    NISs(i)         = NIS;
+    grads(i)        = grad;
 
     % propagate state and covariance
     M = Phi*phat*Phi' + Q; % covariance before update
@@ -123,13 +121,15 @@ for i = 1:n % %%%% loop measurements %%%%%
 
     % Update filter state and covariance matrix using the measurement
     if use_mag
-        z = zs_truth(i) + randn * 1 + temporal_data_mag(i)*1; % current magnetometer reading, nT
+        z = zs_truth(i) + randn*1 + temporal_data_mag(i)*1; % current magnetometer reading, nT
 
         zbar = read_map(xbar, map); % consult the map! nT
 
         resid = z - zbar; % nT
 
         H = numerical_jacobian(f, 1, xbar); % state-measurement linearization, nT/m
+
+        grad = norm(H(1:3)); % nT/m
 
         Sj = H*M*H' + R;
         K = M*H'*inv(Sj); % calculate optimal gain
@@ -154,13 +154,18 @@ for i = 1:n % %%%% loop measurements %%%%%
 end %%%% loop measurements %%%%%
 toc
 
-lla_estimate = ecef2lla(xs(1:3, :)')';
+xx_cov_pos = sqrt(sum(phats([1,  11, 21], 1:iend))); % 1-sigma pos, m
+xx_cov_vel = sqrt(sum(phats([31, 41, 51], 1:iend))); % 1-sigma vel, m/s
+xx_cov_acc = sqrt(sum(phats([61, 71, 81], 1:iend))); % 1-sigma acc, m/s^2
 
-r_error = vecnorm(xs_truth(1:3, 1:i) - xs(1:3, 1:i), 2, 1);
-v_error = vecnorm(xs_truth(4:6, 1:i) - xs(4:6, 1:i), 2, 1);
-a_error = vecnorm(xs_truth(7:9, 1:i) - xs(7:9, 1:i), 2, 1);
+lla_estimate = ecef2lla(xs(1:3, 1:iend)')';
+
+r_error = vecnorm(xs_truth(1:3, 1:iend) - xs(1:3, 1:iend), 2, 1);
+v_error = vecnorm(xs_truth(4:6, 1:iend) - xs(4:6, 1:iend), 2, 1);
+a_error = vecnorm(xs_truth(7:9, 1:iend) - xs(7:9, 1:iend), 2, 1);
 
 %% plotting
+clc;close all
 
 fprintf('Mean Error Stats ---------------\n')
 fprintf('\tPosition:     %f (m)\n', mean(r_error))
@@ -169,8 +174,22 @@ fprintf('\tAcceleration: %f (m/s^2)\n', mean(a_error))
 
 h2 = figure;
 h2.WindowStyle = 'Docked';
-plot(ts_truth(1:i), NISs(1:i))
+plot(ts_truth(1:iend), NISs(1:iend))
 grid on
+
+h3 = figure;
+h3.WindowStyle = 'Docked';
+plot(ts_truth(1:iend), grads(1:iend))
+grid on
+xlabel('Time (s)')
+ylabel('Gradient (nT/m)')
+
+h4 = figure;
+h4.WindowStyle = 'Docked';
+plot(ts_truth(1:iend), temporal_data_mag(1:iend))
+grid on
+xlabel('Time (s)')
+ylabel('Temporal Effects (nT)')
 
 h1 = plot_mag_countour(map);
 
@@ -178,9 +197,12 @@ figure(h1)
 plot(llaf(2), llaf(1), 'xk')
 plot(linspace(lla0(2), llaf(2), n), linspace(lla0(1), llaf(1), n), '--k')
 plot(lla_estimate(2, :), lla_estimate(1, :), 'm')
+legend('', '', '', '', 'Truth', 'Estimate', 'Location', 'Southwest')
 
 
-
+plot_filter( ...
+    ts_truth(1:iend), r_error, v_error, a_error, xx_cov_pos, xx_cov_vel, xx_cov_acc, ...
+    NISs(1:iend), qtilda, true)
 
 
 
