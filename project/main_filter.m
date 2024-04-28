@@ -3,7 +3,8 @@ clear;clc;close all
 %% load data + build map
 addpath('functions')
 addpath('data')
-load('EMAG2_V3_Blacksburg-Roanoke', 'data')
+load('data/EMAG2_V3_Blacksburg-Roanoke', 'data')
+load('data/EMAG2_V3_NGS-Fredericksburg', 'data_frd')
 
 % generate map via interpolation ------------------------------------------
 lat_range = [ 36.758719  37.556273]; nlat = 70;
@@ -11,7 +12,7 @@ lon_range = [-80.874399 -79.464463]; nlon = 75;
 
 map = build_map(data, lat_range, nlat, lon_range, nlon);
 
-% load temporal mag data --------------------------------------------------
+%% load temporal mag data --------------------------------------------------
 % accessed from web: https://imag-data.bgs.ac.uk/GIN_V1/GINForms2
 % text = fileread('data/FRD20240418.json');
 text = fileread('data/FRD20220203.json'); % February Solar Storm (killed Starlink satellites)
@@ -27,13 +28,54 @@ for i = 1:n_temporal_data
 end
 t_temporal_data.TimeZone = "America/New_York";
 
-[XYZ,H,D,I,F] = igrfmagm( ...
+[XYZ,H,D,I,H_core_frd] = igrfmagm( ...
     temporal_data.x_info.altitude, ...
     temporal_data.x_info.latitude, temporal_data.x_info.longitude, ...
     decyear( ...
         t_temporal_data(1).Year, ...
         t_temporal_data(1).Month, ...
         t_temporal_data(1).Day));
+
+H_crust_frd = data_frd.UpCont; % nT
+
+%% load 14 day mag data 
+temporal_data_14day = jsondecode(fileread('data/FRD20220116_14days_minute.json')); % January 2022
+
+H_mag = vecnorm([temporal_data_14day.X, temporal_data_14day.Y, temporal_data_14day.Z]')';
+
+H_temporal_frd_14day = H_mag - H_core_frd - H_crust_frd; % nT
+t_temporal_frd_14day = (1:length(H_temporal_frd_14day)) * 60; % s
+
+temp = [];
+
+for i = 1:14 % 14 days...
+    inds = (i - 1) * 60*24 + (1:60*24);
+    temp = [temp, H_temporal_frd_14day(inds)];
+end
+H_temporal_frd_14day_avg = mean(temp')';
+t_temporal_frd_14day_avg = (1:length(H_temporal_frd_14day_avg)) * 60; % s
+
+inds = ~isnan(H_temporal_frd_14day_avg);
+
+f_temp = fit( ...
+    t_temporal_frd_14day_avg(inds)', H_temporal_frd_14day_avg(inds), 'sin6');
+
+%%
+figure
+hold on
+grid on
+plot(t_temporal_frd_14day_avg, temp)
+plot(t_temporal_frd_14day_avg, H_temporal_frd_14day_avg, 'r', 'Linewidth', 1.5)
+plot(t_temporal_frd_14day_avg, f_temp(t_temporal_frd_14day_avg), 'b', 'Linewidth', 1.5)
+
+% legend('data', 'fit')
+
+% figure
+% plot(t_temporal_frd_14day, H_temporal_frd_14day)
+% grid on
+% hold on
+
+
 
 %% generate truth + measurements
 lla0 = [36.90165855141354, -79.70578451436336, 4e3]; % deg, deg
@@ -46,8 +88,9 @@ Ts = 1;%1/10; % s
 
 % t_temporal_data(32401:(32401 + n - 1));
 
-temporal_data_mag = temporal_data.S(32401:(32401 + n - 1)); % nT
-temporal_data_mag = temporal_data_mag - temporal_data_mag(1);
+H_temporal_frd = ...
+    temporal_data.S(32401:(32401 + n - 1)) - H_core_frd - H_crust_frd; % nT
+
 
 zs_truth = read_map(xs_truth, map); % using truth measurements, perfect sensor
 
@@ -121,7 +164,7 @@ for i = 1:n % %%%% loop measurements %%%%%
 
     % Update filter state and covariance matrix using the measurement
     if use_mag
-        z = zs_truth(i) + randn*1 + temporal_data_mag(i)*1; % current magnetometer reading, nT
+        z = zs_truth(i) + randn*1 + H_temporal_frd(i)*1; % current magnetometer reading, nT
 
         zbar = read_map(xbar, map); % consult the map! nT
 
@@ -168,9 +211,17 @@ a_error = vecnorm(xs_truth(7:9, 1:iend) - xs(7:9, 1:iend), 2, 1);
 clc;close all
 
 fprintf('Mean Error Stats ---------------\n')
-fprintf('\tPosition:     %f (m)\n', mean(r_error))
-fprintf('\tVelocity:     %f (m/s)\n', mean(v_error))
-fprintf('\tAcceleration: %f (m/s^2)\n', mean(a_error))
+fprintf('\tPosition:     %f (m)\n',         mean(r_error))
+fprintf('\tVelocity:     %f (m/s)\n',       mean(v_error))
+fprintf('\tAcceleration: %f (m/s^2)\n',     mean(a_error))
+
+h0 = figure;
+h0.WindowStyle = 'Docked';
+plot(t_temporal_data, temporal_data.S - H_core_frd - data_frd.UpCont)
+grid on
+title('Ionospheric Contribution to Magnetic Field (NGS FRD)')
+ylabel('Magnetic Field Strength (nT)')
+xlabel('Time (Eastern Time Zone)')
 
 h2 = figure;
 h2.WindowStyle = 'Docked';
@@ -186,7 +237,7 @@ ylabel('Gradient (nT/m)')
 
 h4 = figure;
 h4.WindowStyle = 'Docked';
-plot(ts_truth(1:iend), temporal_data_mag(1:iend))
+plot(ts_truth(1:iend), H_temporal_frd(1:iend))
 grid on
 xlabel('Time (s)')
 ylabel('Temporal Effects (nT)')

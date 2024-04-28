@@ -28,6 +28,7 @@ else
         time, xx_covD_pos, 'LineWidth', linew)
 end
 grid on
+title('Filter Performance')
 legend('True Error', 'Covariance')
 ylabel('Position Error (m)')
 

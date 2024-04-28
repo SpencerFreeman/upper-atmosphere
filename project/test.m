@@ -1,7 +1,7 @@
 clear;clc;close all
 
 
-raw_data = import_emag2_file("C:\Users\spenc\Desktop\school shit 2\Spring_2024\upper_atmosphere\project\data\EMAG2_V3_20170530\EMAG2_V3_20170530.csv", [1, Inf]);
+raw_data = import_emag2_file("data\EMAG2_V3_20170530\EMAG2_V3_20170530.csv", [1, Inf]);
 
 
 %%
@@ -14,7 +14,23 @@ inds = raw_data.LON > (360 + lon_range(1)) & raw_data.LON < (360 + lon_range(2))
 
 data = raw_data(inds, :);
 
-save('EMAG2_V3_Blacksburg-Roanoke', 'data')
+% save('data/EMAG2_V3_Blacksburg-Roanoke', 'data')
+
+%%
+
+% 38.21666, -77.3833 --> pretty close to NGS FRD
+
+range = .01; % deg
+
+lat_range = 38.21116410524037 + range*[-1, 1]; % deg
+lon_range = -77.37559992408342 + range*[-1, 1]; % deg
+
+inds = raw_data.LON > (360 + lon_range(1)) & raw_data.LON < (360 + lon_range(2)) & ...
+    raw_data.LAT > lat_range(1) & raw_data.LAT < lat_range(2);
+
+data_frd = raw_data(inds, :);
+
+save('data/EMAG2_V3_NGS-Fredericksburg', 'data_frd')
 
 
 %% plotting
