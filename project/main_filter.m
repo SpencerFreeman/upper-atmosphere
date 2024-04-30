@@ -15,7 +15,8 @@ map = build_map(data, lat_range, nlat, lon_range, nlon);
 %% load temporal mag data --------------------------------------------------
 % accessed from web: https://imag-data.bgs.ac.uk/GIN_V1/GINForms2
 % text = fileread('data/FRD20240418.json');
-text = fileread('data/FRD20220203.json'); % February Solar Storm (killed Starlink satellites)
+text = fileread('data/FRD20220202.json'); % February 2022
+% text = fileread('data/FRD20220203.json'); % February Solar Storm (killed Starlink satellites)
 temporal_data = jsondecode(text);
 
 n_temporal_data = length(temporal_data.datetime);
@@ -39,34 +40,37 @@ t_temporal_data.TimeZone = "America/New_York";
 H_crust_frd = data_frd.UpCont; % nT
 
 %% load 14 day mag data 
-temporal_data_14day = jsondecode(fileread('data/FRD20220116_14days_minute.json')); % January 2022
+% temporal_data_14day = jsondecode(fileread('data/FRD20220116_14days_minute.json')); % January 2022
+% 
+% H_mag = vecnorm([temporal_data_14day.X, temporal_data_14day.Y, temporal_data_14day.Z]')';
+% 
+% H_temporal_frd_14day = H_mag - H_core_frd - H_crust_frd; % nT
+% t_temporal_frd_14day = (1:length(H_temporal_frd_14day)) * 60; % s
+% 
+% temp = [];
+% 
+% for i = 1:14 % 14 days...
+%     inds = (i - 1) * 60*24 + (1:60*24);
+%     temp = [temp, H_temporal_frd_14day(inds)];
+% end
+% H_temporal_frd_14day_avg = mean(temp')';
+% t_temporal_frd_14day_avg = (1:length(H_temporal_frd_14day_avg)) * 60; % s
+% 
+% inds = ~isnan(H_temporal_frd_14day_avg);
+% 
+% f_temp = fit( ...
+%     t_temporal_frd_14day_avg(inds)', H_temporal_frd_14day_avg(inds), 'sin6');
+% 
+% save('test.mat', 'f_temp', 't_temporal_frd_14day_avg')
 
-H_mag = vecnorm([temporal_data_14day.X, temporal_data_14day.Y, temporal_data_14day.Z]')';
-
-H_temporal_frd_14day = H_mag - H_core_frd - H_crust_frd; % nT
-t_temporal_frd_14day = (1:length(H_temporal_frd_14day)) * 60; % s
-
-temp = [];
-
-for i = 1:14 % 14 days...
-    inds = (i - 1) * 60*24 + (1:60*24);
-    temp = [temp, H_temporal_frd_14day(inds)];
-end
-H_temporal_frd_14day_avg = mean(temp')';
-t_temporal_frd_14day_avg = (1:length(H_temporal_frd_14day_avg)) * 60; % s
-
-inds = ~isnan(H_temporal_frd_14day_avg);
-
-f_temp = fit( ...
-    t_temporal_frd_14day_avg(inds)', H_temporal_frd_14day_avg(inds), 'sin6');
 
 %%
-figure
-hold on
-grid on
-plot(t_temporal_frd_14day_avg, temp)
-plot(t_temporal_frd_14day_avg, H_temporal_frd_14day_avg, 'r', 'Linewidth', 1.5)
-plot(t_temporal_frd_14day_avg, f_temp(t_temporal_frd_14day_avg), 'b', 'Linewidth', 1.5)
+% figure
+% hold on
+% grid on
+% plot(t_temporal_frd_14day_avg, temp)
+% plot(t_temporal_frd_14day_avg, H_temporal_frd_14day_avg, 'r', 'Linewidth', 1.5)
+% plot(t_temporal_frd_14day_avg, f_temp(t_temporal_frd_14day_avg), 'b', 'Linewidth', 1.5)
 
 % legend('data', 'fit')
 
@@ -75,6 +79,7 @@ plot(t_temporal_frd_14day_avg, f_temp(t_temporal_frd_14day_avg), 'b', 'Linewidth
 % grid on
 % hold on
 
+load('test.mat', 'f_temp', 't_temporal_frd_14day_avg')
 
 
 %% generate truth + measurements
@@ -219,9 +224,12 @@ h0 = figure;
 h0.WindowStyle = 'Docked';
 plot(t_temporal_data, temporal_data.S - H_core_frd - data_frd.UpCont)
 grid on
+hold on
+plot(t_temporal_data(1:60:end), f_temp(t_temporal_frd_14day_avg))
 title('Ionospheric Contribution to Magnetic Field (NGS FRD)')
 ylabel('Magnetic Field Strength (nT)')
 xlabel('Time (Eastern Time Zone)')
+legend('Truth', 'Estimated', 'Location', 'Southwest')
 
 h2 = figure;
 h2.WindowStyle = 'Docked';
