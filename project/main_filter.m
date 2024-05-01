@@ -5,6 +5,7 @@ addpath('functions')
 addpath('data')
 load('data/EMAG2_V3_Blacksburg-Roanoke', 'data')
 load('data/EMAG2_V3_NGS-Fredericksburg', 'data_frd')
+load('test.mat', 'f_temp', 't_temporal_frd_14day_avg')
 
 % generate map via interpolation ------------------------------------------
 lat_range = [ 36.758719  37.556273]; nlat = 70;
@@ -15,8 +16,8 @@ map = build_map(data, lat_range, nlat, lon_range, nlon);
 %% load temporal mag data --------------------------------------------------
 % accessed from web: https://imag-data.bgs.ac.uk/GIN_V1/GINForms2
 % text = fileread('data/FRD20240418.json');
-text = fileread('data/FRD20220202.json'); % February 2022
-% text = fileread('data/FRD20220203.json'); % February Solar Storm (killed Starlink satellites)
+% text = fileread('data/FRD20220202.json'); % February 2, 2022
+text = fileread('data/FRD20220203.json'); % February 3, 2022 Solar Storm (killed Starlink satellites)
 temporal_data = jsondecode(text);
 
 n_temporal_data = length(temporal_data.datetime);
@@ -42,6 +43,15 @@ H_crust_frd = data_frd.UpCont; % nT
 %% load 14 day mag data 
 % temporal_data_14day = jsondecode(fileread('data/FRD20220116_14days_minute.json')); % January 2022
 % 
+% for i = 1:(60*24)
+%     t_temporal_frd_14day_avg(i) = datetime( ...
+%         temporal_data_14day.datetime{i}(1:(end - 5)), ...
+%         'InputFormat', 'yyyy-MM-dd''T''HH:mm:ss', ...
+%         'TimeZone', 'Etc/UTC');
+% end
+% t_temporal_frd_14day_avg.TimeZone = "America/New_York";
+% 
+% 
 % H_mag = vecnorm([temporal_data_14day.X, temporal_data_14day.Y, temporal_data_14day.Z]')';
 % 
 % H_temporal_frd_14day = H_mag - H_core_frd - H_crust_frd; % nT
@@ -54,32 +64,35 @@ H_crust_frd = data_frd.UpCont; % nT
 %     temp = [temp, H_temporal_frd_14day(inds)];
 % end
 % H_temporal_frd_14day_avg = mean(temp')';
-% t_temporal_frd_14day_avg = (1:length(H_temporal_frd_14day_avg)) * 60; % s
+% t_temporal_frd_14day_avg_s = (1:length(H_temporal_frd_14day_avg)) * 60; % s
 % 
 % inds = ~isnan(H_temporal_frd_14day_avg);
 % 
 % f_temp = fit( ...
-%     t_temporal_frd_14day_avg(inds)', H_temporal_frd_14day_avg(inds), 'sin6');
-% 
-% save('test.mat', 'f_temp', 't_temporal_frd_14day_avg')
+%     t_temporal_frd_14day_avg_s(inds)', H_temporal_frd_14day_avg(inds), 'sin6');
 
 
-%%
+%% plotting
 % figure
 % hold on
 % grid on
 % plot(t_temporal_frd_14day_avg, temp)
 % plot(t_temporal_frd_14day_avg, H_temporal_frd_14day_avg, 'r', 'Linewidth', 1.5)
-% plot(t_temporal_frd_14day_avg, f_temp(t_temporal_frd_14day_avg), 'b', 'Linewidth', 1.5)
-
-% legend('data', 'fit')
+% plot(t_temporal_frd_14day_avg, f_temp(t_temporal_frd_14day_avg_s), 'b', 'Linewidth', 1.5)
+% xtickformat('HH:mm')
+% xlabel('Local Time')
+% ylabel('Magnetic Field Strength (nT)')
+% 
+% empt = repmat({''}, 1, 14);
+% legend(empt{:}, 'Averaged Data', 'Model Fit', 'Location', 'Southwest')
 
 % figure
 % plot(t_temporal_frd_14day, H_temporal_frd_14day)
 % grid on
 % hold on
 
-load('test.mat', 'f_temp', 't_temporal_frd_14day_avg')
+% save('test.mat', 'f_temp', 't_temporal_frd_14day_avg')
+
 
 
 %% generate truth + measurements
@@ -91,10 +104,14 @@ llaf = [37.22891412982679, -80.43067879145124, 4e3]; % deg, deg
 Ts = 1;%1/10; % s
 [xs_truth, ts_truth, n] = generate_trajectory(lla0, llaf, 50, Ts); %
 
-% t_temporal_data(32401:(32401 + n - 1));
+% t_temporal_data(i_temporal:(i_temporal + n - 1));
+
+i_temporal = 32401; % 4am i think
+
+seconds_offset = seconds(t_temporal_data(i_temporal) - t_temporal_data(1)); % s
 
 H_temporal_frd = ...
-    temporal_data.S(32401:(32401 + n - 1)) - H_core_frd - H_crust_frd; % nT
+    temporal_data.S(i_temporal:(i_temporal + n - 1)) - H_core_frd - H_crust_frd; % nT
 
 
 zs_truth = read_map(xs_truth, map); % using truth measurements, perfect sensor
@@ -120,7 +137,7 @@ Phi = [...
 
 % x0 = [xs_truth(1:3, 1); zeros(6, 1)]; % m, m/s, m/s^2
 x0 = xs_truth(:, 1) + ...
-    [randn(3, 1) * 10; randn(3, 1) * 2; randn(3, 1) * .1]; % initialize with truth
+    [randn(3, 1) * 10; randn(3, 1) * 10; randn(3, 1) * .1]; % initialize with truth
 
 % x0 = [913107.851200612; -5027503.00541662; 3811061.22541831; -39.8270679230392; 8.35545013041825; 22.4064255614077; -5.61802231030889e-05; 0.000309317309728480; -0.000234476519221953];
 
@@ -169,7 +186,9 @@ for i = 1:n % %%%% loop measurements %%%%%
 
     % Update filter state and covariance matrix using the measurement
     if use_mag
-        z = zs_truth(i) + randn*1 + H_temporal_frd(i)*1; % current magnetometer reading, nT
+        z = zs_truth(i) + randn*10 + H_temporal_frd(i)*1; % current magnetometer reading, nT
+
+%         z = z - f_temp(seconds_offset + ts_truth(i)); % remove daily variation
 
         zbar = read_map(xbar, map); % consult the map! nT
 
@@ -213,44 +232,45 @@ v_error = vecnorm(xs_truth(4:6, 1:iend) - xs(4:6, 1:iend), 2, 1);
 a_error = vecnorm(xs_truth(7:9, 1:iend) - xs(7:9, 1:iend), 2, 1);
 
 %% plotting
-clc;close all
+% clc;close all
 
 fprintf('Mean Error Stats ---------------\n')
 fprintf('\tPosition:     %f (m)\n',         mean(r_error))
 fprintf('\tVelocity:     %f (m/s)\n',       mean(v_error))
 fprintf('\tAcceleration: %f (m/s^2)\n',     mean(a_error))
 
-h0 = figure;
-h0.WindowStyle = 'Docked';
-plot(t_temporal_data, temporal_data.S - H_core_frd - data_frd.UpCont)
-grid on
-hold on
-plot(t_temporal_data(1:60:end), f_temp(t_temporal_frd_14day_avg))
-title('Ionospheric Contribution to Magnetic Field (NGS FRD)')
-ylabel('Magnetic Field Strength (nT)')
-xlabel('Time (Eastern Time Zone)')
-legend('Truth', 'Estimated', 'Location', 'Southwest')
+% h0 = figure;
+% h0.WindowStyle = 'Docked';
+% plot(t_temporal_data, temporal_data.S - H_core_frd - data_frd.UpCont)
+% % plot(t_temporal_data, temporal_data.S)
+% grid on
+% hold on
+% plot(t_temporal_data(1:60:end), f_temp(t_temporal_frd_14day_avg))
+% title('24 Hour Magnetic Field (NGS FRD)')
+% ylabel('Magnetic Field Strength (nT)')
+% xlabel('Time (Eastern Time Zone)')
+% % legend('Truth', 'Estimated', 'Location', 'Southwest')
+% 
+% h2 = figure;
+% h2.WindowStyle = 'Docked';
+% plot(ts_truth(1:iend), NISs(1:iend))
+% grid on
+% 
+% h3 = figure;
+% h3.WindowStyle = 'Docked';
+% plot(ts_truth(1:iend), grads(1:iend))
+% grid on
+% xlabel('Time (s)')
+% ylabel('Gradient (nT/m)')
+% 
+% h4 = figure;
+% h4.WindowStyle = 'Docked';
+% plot(ts_truth(1:iend), H_temporal_frd(1:iend))
+% grid on
+% xlabel('Time (s)')
+% ylabel('Temporal Effects (nT)')
 
-h2 = figure;
-h2.WindowStyle = 'Docked';
-plot(ts_truth(1:iend), NISs(1:iend))
-grid on
-
-h3 = figure;
-h3.WindowStyle = 'Docked';
-plot(ts_truth(1:iend), grads(1:iend))
-grid on
-xlabel('Time (s)')
-ylabel('Gradient (nT/m)')
-
-h4 = figure;
-h4.WindowStyle = 'Docked';
-plot(ts_truth(1:iend), H_temporal_frd(1:iend))
-grid on
-xlabel('Time (s)')
-ylabel('Temporal Effects (nT)')
-
-h1 = plot_mag_countour(map);
+% h1 = plot_mag_countour(map);
 
 figure(h1)
 plot(llaf(2), llaf(1), 'xk')

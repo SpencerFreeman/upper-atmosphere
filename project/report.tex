@@ -11,6 +11,8 @@
 
 % my packages
 \usepackage{wrapfig}
+\usepackage{float}
+\usepackage{subfigure}
 
 \title{Interaction of Geomagnetic Storms on Earth Magnetic Anomaly Navigation}
 
@@ -147,6 +149,12 @@ With the simple filter design worked out, the next step was to develop a model o
 
 The predicted field value is generated using the map and the current state estimate. This is the process that would be implemented on a real time system using pre-loaded map data. The effect of the crust on magnetic field is most variable in the plane horizontal to the Earth's surface, but does vary some vertically. There are techniques for processing the vertical component known as upward continuation, but for simplification they are omitted for this analysis. The spatial wavelengths of the crustal field vary roughly with altitude (wavelength = altitude) as a convenient rule of thumb \cite{Absolute_Positioning_Using_the_Earths_Magnetic_Anomaly_Field}. Magnetic navigation has yet to become widespread and so comprehensive high quality maps are not abundant. Most that are sufficient for navigation purposes were created for the natural resource prospecting industry and are thus localized and not standardized. Many lie behind pay walls for the work of creating the maps. Even so, there have been some international efforts to make worldwide magnetic anomaly maps freely available. One example is the NOAA Earth Magnetic Anomaly Grid 2-arc-minute resolution (EMAG2) v3; this map is global in scale, available publicly on the internet \cite{noaa_emag2}. Unfortunately, the EMAG2 as its name implies features data only down to the 2-arc-minute resolution and at only 2 levels: sea level and 4 km above sea level. 2 arc-minutes is ~3.5 km at the equator, meaning only data at that spacing is available. This would not be sufficient for sub kilometer navigation, but can still be used as a signal for less precise positioning and analysis of techniques.
 
+% \begin{figure}[H]
+% \centering
+% \includegraphics[width=.75\textwidth]{figures/EMAG2_V3_upcontposter.png}
+% \caption{EMAG2 v3 \cite{noaa_emag2}}
+% \end{figure}
+
 \subsection{Geomagnetic Storm Representation} \label{geostorm_rep} % ------------------
 
 The topics discussed thus far have outlined the basics of magnetic anomaly navigation and a simplified model for simulating a case. The next section describes models needed for the heart of this study: effects of geomagnetic storms on magnetic navigation. Magnetic storms are by nature complex and chaotic processes which are difficult to predict precisely. Thus it was decided to pursue real data as inputs to the simulation. Since storms occur infrequently, most data on magnetic field disturbances are captured by persistent ground based recording stations. These are operated by geophysical science agencies around the world and the collected data is publicly available. Much of this data is hosted by the British Geological Survey and made available through a web service called INTERMAGNET \cite{intramagnet}. The methodology for applying this data to the magnetometer model was to take the recorded data and subtract off the known components specific to that locale. The remaining component should reflect the affect of the temporal (time varying) disturbances. Taking data captured during known geomagnetic storms paints a fairly accurate snapshot of storm effects which could be reasonably applied to other locations. This is summarized in Equations \ref{H_temporal} and \ref{H_ion}.
@@ -159,27 +167,101 @@ The topics discussed thus far have outlined the basics of magnetic anomaly navig
     H_{ion}(x, t) = H_{temporal}(x, t) - (H_{crust}(x) + H_{core}(x) + H_{other}(x, t)), \; (nT)
 \end{equation}
 
+The temporal data was chosen from the closest survey station. Since the region of interest for this analysis is western Virginia, the closest station was the National Geological Survey (NGS) in Fredericksburg, VA (FRD). 
+
 \section{Results} % ==========================================
 
-
+This section will present the results of the project and describe the data that was generated. Detailed  analysis and conclusions will be reserved for Section \ref{discussion}. The initial results detail the nominal case where no time-varying disturbances are applied. This is the so called, solar quiet (Sq) time where the magnetic field is generally quite predictable on a day to day basis. This is the easiest case for navigation and is thus a good reference point for comparison. The plots following the Sq case will show the results of navigation simulation under geomagnetic storm conditions as modeled by the time-varying storm data discussed previously.
 
 \subsection{Quiet Time} % -----------------------
 
+Since we are most interested in horizontal motion, a projection of the truth trajectory and estimated trajectory are overlaid onto the magnetic field map contour. The truth line is shown as a black dashed line and the estimated line is shown in magenta.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=1.0\textwidth]{figures/trajectory_quiet.png}
+\caption{Trajectory, Sq.}
+\end{figure}
+
+The time history of the filter data is shown in the next plot. This shows the quantitative performance of the state estimation at all points during the trajectory. The data is plotted on a log scale to appropriately capture the spread of data. The 4 time histories are as follows: position error magnitude, velocity error magnitude, acceleration error magnitude, and normalized innovation squared (NIS). The true errors are shown in blue and the covariances (estimated error) are co-plotted in orange.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=1.0\textwidth]{figures/filter_quiet.png}
+\caption{Filter Performance, Sq.}
+\end{figure}
+
+As expected, the filter performs quite well; the estimated trajectory nearly hides the true trajectory by lining up exactly. The filter settles nicely early in the trajectory as shown by the steady state of the time histories.
+
 \subsection{Stormy} % -----------------------
 
-\begin{figure}[h!]
-\centering
-\includegraphics[width=.75\textwidth]{figures/trajectory.png}
-\caption{Filter performance XXX.}
+This subsection presents the storm time results of the analysis. Before diving into the filter output, a display of the the storm model is warranted. As discussed before, there was a need to pre process the storm data in order to extract the storm effects (remove core field and local magnetic anomaly); this procedure was performed on data from Sq time recorded by the NGS Fredericksburg station. This is shown in the following plots.
+
+\begin{figure}[H]
+\hfill
+\subfigure[Raw Data]{\includegraphics[width=0.4\textwidth]{figures/temporal_sq_raw.png}}
+\hfill
+\subfigure[Local Effects Removed]{\includegraphics[width=0.4\textwidth]{figures/temporal_sq.png}}
+\hfill
+% \caption{Title for both}
 \end{figure}
 
-\begin{figure}[h!]
+This data represents a snapshot of the daily variation in magnetic field activity. Their is a noticeable dip at local noon time which aligns with the understanding of solar activity \cite{Physics_of_the_Earths_Space_Environment}. Since this variation is consistent on a daily basis, it is reasonable that it may be corrected for in the measurement using a time based lookup. To approximate this process, a model was fit to 14 days of 1-minute temporal resolution data that was superimposed and time-averaged. This is shown here:
+
+\begin{figure}[H]
 \centering
-\includegraphics[width=1.0\textwidth]{figures/filter_performance.png}
-\caption{Filter performance XXX.}
+\includegraphics[width=0.85\textwidth]{figures/daily_model_fit.png}
+\caption{Daily Variation Fitted Data.}
 \end{figure}
 
-\section{Discussion} % ==========================================
+Given this predictable variation, the model can be used to correct the measurements using a low complexity approach (model is a sum of 6 sines with fitted weights). This will be more representative approach to a real system and is thus necessary to compare the storm time results with. The results of a simulation with the adjustment applied is shown below.
+
+The estimated temporal variation is overlaid with the true variation in the next plot. It estimates well in the night time but fails largely during daylight.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/temporal_sq_and_fit.png}
+\caption{Variation with Estimation, Sq.}
+\end{figure}
+
+\begin{figure}[H]
+\hfill
+\subfigure[Trajectory Sq, Daily Variation]{\includegraphics[width=0.45\textwidth]{figures/trajectory_quiet_temporal.png}}
+\hfill
+\subfigure[Trajectory Sq, Daily Variation Corrected]{\includegraphics[width=0.45\textwidth]{figures/trajectory_quiet_temporal_corrected.png}}
+\hfill
+% \caption{Title for both}
+\end{figure}
+
+With the daily variation accounted for (not perfect, but close), the simulation of the filter during storm time can be practically compared. The choice of storm data was from the February 3, 2022 geomagnetic storm which was particularly devastating on commercial satellites where 38 satellites were lost. The daily variation shows just how much impact the storm had on magnetic field measurements.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\textwidth]{figures/temporal_storm_and_fit.png}
+\caption{Variation with Estimation, Storm.}
+\end{figure}
+
+Obviously, the correction assuming the usual daily variation will be hopelessly inaccurate. The ultimate question remains how much error will the filter accumulate due to this inaccuracy. The following plots are the simulation for this storm period.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=1.0\textwidth]{figures/trajectory_storm_multi.png}
+\caption{8 Trajectories, Storm.}
+\end{figure}
+
+The previous plot shows 8 runs of the simulation co-plotted. The noise in the system causes each result to diverge from their nominally common initial conditions. Interestingly, they all exhibit a similar bias from the true trajectory; they creep northeasterly uphill with respect to the magnetic anomaly contour before diverging due to integrated errors.
+
+The filter output time history is shown below for 1 case of the batch; the others show similar trends at varying levels of error.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=1.0\textwidth]{figures/filter_storm.png}
+\caption{1 Select from 8 Trajectories, Storm.}
+\end{figure}
+
+\section{Discussion} \label{discussion} % ==========================================
+
+
 
 \section{Further Work} % ==========================================
 
