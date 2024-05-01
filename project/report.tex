@@ -9,6 +9,9 @@
 \usepackage{longtable,tabularx}
 \setlength\LTleft{0pt} 
 
+% my packages
+\usepackage{wrapfig}
+
 \title{Interaction of Geomagnetic Storms on Earth Magnetic Anomaly Navigation}
 
 \author{Spencer A. Freeman}
@@ -90,25 +93,75 @@ Magnetic fields describe the physical phenomenon of forces exerted on and genera
 
 \subsection{Geomagnetic Storms} % -----------------------
 
-Geomagnetic storms are 
+Geomagnetic storms are events in the ionosphere and magnetosphere which cause above average electrical currents which in turn create disturbances in the quiet time magnetic field. They are driven by high intensity solar winds emitted by the sun for short periods which generate ions that circulate in the ionosphere creating induced currents \cite{Physics_of_the_Earths_Space_Environment}. These events can be triggered by Solar Flares or Coronal Mass Ejections (CME) originating from the Sun's surface.
 
 \section{Data and Methods} % ==========================================
 
+This section will cover the data and methods applied to this study. The conceptual math and physics describing the natural phenomenons has been previously thus far been described; the specific methods relating to the math and physics is the topic of this section. The first section will cover the filter design and simulation methodology, the second section will cover the magnetic field models implemented in the simulation, and last section covers the representation of geomagnetic storms in the simulation. Particular detail will be given to the data sources and their pedigree since they are core to the analysis at hand.
+
 \subsection{The Kalman Filter} % -----------------------
+
+\begin{wrapfigure}{r}{0.4\textwidth} %this figure will be at the right
+    \centering
+    \includegraphics[width=0.4\textwidth]{figures/ecef_system.png}
+    \caption{ECEF Coordinates \cite{mathworks_ecef}.}
+\end{wrapfigure}
+
+The workhorse of state estimation is the discrete time Kalman filter. There are many flavors of this filter and nearly all are tailored for their specific use case; the level of complexity flows down as needed by the use case. Simpler is always preferred and in the case of real-time estimation, a design requirement due to embedded systems processing limitations. For the purposes of this project, the chosen state model was the 3 Cartesian components of position in the Earth Centered, Earth Fixed (ECEF) frame. A constant acceleration model was used to represent the dynamics which specifies 9 total states for the filter to process; position, velocity, and acceleration of each ECEF component. This is a common coordinate system which works globally and is well standardized in the aerospace field. Constant acceleration implies that the dynamics are assumed to be constant acceleration over each time step. This dictates the form of the state transformation matrix \(\Phi\). 
+
+\begin{equation}
+    \Phi = \begin{bmatrix} I_{3x3} & \Delta t & \frac{1}{2}\Delta t^{2} \\ 0_{3x3} & I_{3x3} & \Delta t \\ 0_{3x3} & 0_{3x3} & I_{3x3} \end{bmatrix}
+\end{equation}
+
+The discrete time process noise model used in this analysis is simple although the derivation is complicated. It assumes the noise in the dynamics originate solely in the acceleration; there is no direct uncertainty that the derivative of position is velocity. The form of the process noise covariance matrix is given here:
+
+\begin{equation}
+    Q = \begin{bmatrix} \frac{1}{2}\Delta t^{5} & \frac{1}{8}\Delta t^{4} & \frac{1}{6}\Delta t^{3} \\ \frac{1}{8}\Delta t^{4} & \frac{1}{3}\Delta t^{3} & \frac{1}{2}\Delta t^{2} \\ \frac{1}{6}\Delta t^{3} & \frac{1}{2}\Delta t^{2} & \Delta t \end{bmatrix}\Tilde{q}
+\end{equation}
+
+The filter must be initialized with some a prioi estimate of the state vector and covariance matrix. As long as this data is in the ballpark of the true values, the filter should converge as intended. In this analysis random variations were added to the initial state estimate and the covariance matrix was initialized with the following values:
+
+\begin{equation}
+    x_{0} = x_{0_{truth}} + w_{\sigma}
+\end{equation}
+
+Where \(w_{\sigma}\) is a 9x1 vector of normally distributed white noise applied at initialization. The first 3 elements are the distribution of positional noise, the next 3 are velocity and last 3 acceleration error. The standard deviation of this noise is given in Table 1 along with other filter parameters. 
+
+\begin{center}
+\begin{tabular}{||c c c | c | c||} 
+ \hline
+ $\sigma_{position}$ & $\sigma_{velocity}$ & $\sigma_{acceleration}$ & $\Tilde{q}$ & $\Delta t$ \\ [0.5ex] 
+ \hline
+  10 \((m)\) & 2 \((m/s)\) & 0.2 \((m/s^{2})\) & 1 $(m^{2}/s^{5})$ & 1 $(s)$ \\ [1ex] 
+ \hline
+\end{tabular}
+\end{center}
 
 \subsection{Magnetic Field Representation} % -----------------------
 
-\subsection{Geomagnetic Storm Representation} % -----------------------
+With the simple filter design worked out, the next step was to develop a model of the Earth's magnetic field through the buildup of each component as previously discussed. As previously discussed, the signal of interest is the component of the magnetic field produced by minerals in the crust. There are actually 2 data points needed: a measurement of the total field (that which would be observed by a real magnetometer) and a map of the crustal component precisely relating the field magnitude to geodetic position. The maps are built offline by collecting field strength data at known locations; this is very practical using modern GNSS positioning and survey aircraft. The difficulty  The method for simulating this measurement was to simply use the map value (treated as truth) and add appropriate noise to the simulated measurement injected into the filter. This method avoids many of the challenges of magnetic navigation (core field estimation, map integrity, magnetometer dynamics, etc) but keeps the essence intact enough to observe general trends in the techniques applied. The measurement z contains 3 components: the crustal field interpolated from the map, Gaussian white noise, and a time-varying input, which will be discussed in Section \ref{geostorm_rep}. The buildup is summarized in Equation \ref{measurement_buildup}:
 
-\begin{equation}
+\begin{equation} \label{measurement_buildup}
+    z(x_{ truth}) = H_{map}(x_{ truth}) + H_{noise} + H_{temporal}(t)
+\end{equation}
+
+The predicted field value is generated using the map and the current state estimate. This is the process that would be implemented on a real time system using pre-loaded map data. The effect of the crust on magnetic field is most variable in the plane horizontal to the Earth's surface, but does vary some vertically. There are techniques for processing the vertical component known as upward continuation, but for simplification they are omitted for this analysis. The spatial wavelengths of the crustal field vary roughly with altitude (wavelength = altitude) as a convenient rule of thumb \cite{Absolute_Positioning_Using_the_Earths_Magnetic_Anomaly_Field}. Magnetic navigation has yet to become widespread and so comprehensive high quality maps are not abundant. Most that are sufficient for navigation purposes were created for the natural resource prospecting industry and are thus localized and not standardized. Many lie behind pay walls for the work of creating the maps. Even so, there have been some international efforts to make worldwide magnetic anomaly maps freely available. One example is the NOAA Earth Magnetic Anomaly Grid 2-arc-minute resolution (EMAG2) v3; this map is global in scale, available publicly on the internet \cite{noaa_emag2}. Unfortunately, the EMAG2 as its name implies features data only down to the 2-arc-minute resolution and at only 2 levels: sea level and 4 km above sea level. 2 arc-minutes is ~3.5 km at the equator, meaning only data at that spacing is available. This would not be sufficient for sub kilometer navigation, but can still be used as a signal for less precise positioning and analysis of techniques.
+
+\subsection{Geomagnetic Storm Representation} \label{geostorm_rep} % ------------------
+
+The topics discussed thus far have outlined the basics of magnetic anomaly navigation and a simplified model for simulating a case. The next section describes models needed for the heart of this study: effects of geomagnetic storms on magnetic navigation. Magnetic storms are by nature complex and chaotic processes which are difficult to predict precisely. Thus it was decided to pursue real data as inputs to the simulation. Since storms occur infrequently, most data on magnetic field disturbances are captured by persistent ground based recording stations. These are operated by geophysical science agencies around the world and the collected data is publicly available. Much of this data is hosted by the British Geological Survey and made available through a web service called INTERMAGNET \cite{intramagnet}. The methodology for applying this data to the magnetometer model was to take the recorded data and subtract off the known components specific to that locale. The remaining component should reflect the affect of the temporal (time varying) disturbances. Taking data captured during known geomagnetic storms paints a fairly accurate snapshot of storm effects which could be reasonably applied to other locations. This is summarized in Equations \ref{H_temporal} and \ref{H_ion}.
+
+\begin{equation} \label{H_temporal}
     H_{temporal}(x, t) = H_{crust}(x) + H_{core}(x) + H_{ion}(x, t) + H_{other}(x, t), \; (nT)
 \end{equation}
 
-\begin{equation}
+\begin{equation} \label{H_ion}
     H_{ion}(x, t) = H_{temporal}(x, t) - (H_{crust}(x) + H_{core}(x) + H_{other}(x, t)), \; (nT)
 \end{equation}
 
 \section{Results} % ==========================================
+
+
 
 \subsection{Quiet Time} % -----------------------
 
