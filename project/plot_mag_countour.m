@@ -7,7 +7,7 @@ Vq = map(:, :, 3); % mag
 
 
 h = figure('WindowStyle', 'Docked');
-contourf(wrapTo180(Xq), Yq, Vq)%, "ShowText",true,"LabelFormat","%0.0f (nT)")
+% contourf(wrapTo180(Xq), Yq, Vq)%, "ShowText",true,"LabelFormat","%0.0f (nT)")
 hold on
 
 % plot(wrapTo180(x), y, '.k')
@@ -23,9 +23,9 @@ roanoke_lla = [37.2810435498791, -79.95796154021077];
 plot(roanoke_lla(2), roanoke_lla(1), '*', 'Color',clr)
 text(roanoke_lla(2), roanoke_lla(1) + .1, 'Roanoke', 'Color',clr)
 
-clim([min(Vq(:)) max(Vq(:))])
-c = colorbar;
-c.Label.String = '(nT)';
+% clim([min(Vq(:)) max(Vq(:))])
+% c = colorbar;
+% c.Label.String = '(nT)';
 
 lon_plot = linspace(Xq(1, 1) - 360, Xq(1, end) - 360, 5)';
 for i = 1:length(lon_plot)

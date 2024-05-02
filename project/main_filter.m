@@ -186,7 +186,7 @@ for i = 1:n % %%%% loop measurements %%%%%
 
     % Update filter state and covariance matrix using the measurement
     if use_mag
-        z = zs_truth(i) + randn*10 + H_temporal_frd(i)*1; % current magnetometer reading, nT
+        z = zs_truth(i) + randn*1 + H_temporal_frd(i)*1; % current magnetometer reading, nT
 
 %         z = z - f_temp(seconds_offset + ts_truth(i)); % remove daily variation
 
@@ -251,10 +251,12 @@ fprintf('\tAcceleration: %f (m/s^2)\n',     mean(a_error))
 % xlabel('Time (Eastern Time Zone)')
 % % legend('Truth', 'Estimated', 'Location', 'Southwest')
 % 
-% h2 = figure;
-% h2.WindowStyle = 'Docked';
-% plot(ts_truth(1:iend), NISs(1:iend))
-% grid on
+h2 = figure;
+h2.WindowStyle = 'Docked';
+plot(ts_truth(1:iend), NISs(1:iend))
+grid on
+xlabel('Time (s)')
+ylabel('NIS')
 % 
 % h3 = figure;
 % h3.WindowStyle = 'Docked';
@@ -270,18 +272,18 @@ fprintf('\tAcceleration: %f (m/s^2)\n',     mean(a_error))
 % xlabel('Time (s)')
 % ylabel('Temporal Effects (nT)')
 
-% h1 = plot_mag_countour(map);
+h1 = plot_mag_countour(map);
 
 figure(h1)
-plot(llaf(2), llaf(1), 'xk')
+% plot(llaf(2), llaf(1), 'xk')
 plot(linspace(lla0(2), llaf(2), n), linspace(lla0(1), llaf(1), n), '--k')
-plot(lla_estimate(2, :), lla_estimate(1, :), 'm')
-legend('', '', '', '', 'Truth', 'Estimate', 'Location', 'Southwest')
-
-
-plot_filter( ...
-    ts_truth(1:iend), r_error, v_error, a_error, xx_cov_pos, xx_cov_vel, xx_cov_acc, ...
-    NISs(1:iend), qtilda, true)
+% plot(lla_estimate(2, :), lla_estimate(1, :), 'm')
+% legend('', '', '', '', 'Truth', 'Estimate', 'Location', 'Southwest')
+grid on
+% 
+% plot_filter( ...
+%     ts_truth(1:iend), r_error, v_error, a_error, xx_cov_pos, xx_cov_vel, xx_cov_acc, ...
+%     NISs(1:iend), qtilda, true)
 
 
 
